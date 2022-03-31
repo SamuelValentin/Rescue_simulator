@@ -22,6 +22,7 @@ struct agentes{
 
 struct vitima{
   int x, y;
+  float estadoCritico;
 };
 
 
@@ -30,8 +31,8 @@ void agentePosicionGo(agentes *a, char action, int **mapa);
 void agentePosicionBack(agentes *a, char action);
 
 int **setambiente(int x, int y, string paredes, string vitimas);
-int **start_vasculhador(agentes *a, int** mapa, int x, int y);
-void start_socorrista(agentes *b, int** mapa, int x, int y);
+int **start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv);
+void start_socorrista(agentes *b, int** mapa, int x, int y, vitima *lv);
 
 float distanciaH(int x1, int x2, int y1, int y2);
 
@@ -40,7 +41,35 @@ int main(){
   
   string line, text, dados, aux, vitimas, paredes;
   int n_line, i, m = 10 , n = 10, apx, apy;
+  
+  vitima lv[5];
 
+  //leitura config.txt
+  ifstream myfileA("ambiente.txt");
+	if (myfileA.is_open()) {
+      while (getline(myfileA, line)){
+        for(i = 0; i<line.size(); i++){
+          //tira o titulo
+          if(line[i] == '=')
+            break;
+        }
+        text = line.substr(0, i);
+
+        if(text == "maxLin"){
+          aux = line.substr(i+1, i+1);
+          m = stoi(aux);
+          cout << m <<endl;
+        }else if(text == "maxCol"){
+          n = stoi(dados);
+        }
+      }
+      //fecha arquivo
+      myfileA.close();
+	}
+	else{
+    cout << "\nUnable to open file";
+    return 0;
+  }
   // Leitura do Ambiente.txt
   ifstream myfile("ambiente.txt");
 	if (myfile.is_open()) {
@@ -78,13 +107,13 @@ int main(){
       cout << "Vasculhador trabalhando" << endl;
       agentes vasculhador;
       setAgentes(apx, apy, 240, 0, &vasculhador);
-      mapaSoc = start_vasculhador(&vasculhador, mapa, m, n);
+      mapaSoc = start_vasculhador(&vasculhador, mapa, m, n, lv);
 
       //Socorrista - Busca informada - A*
       cout << "Socorrista trabalhando" << endl;
       agentes socorrista;
       setAgentes(apx, apy, 240, 0, &socorrista);
-      //start_socorrista(&socorrista, mapaSoc, m, n);
+      start_socorrista(&socorrista, mapa, m, n, lv);
 
 	}
 	else{
@@ -190,7 +219,7 @@ void agentePosicionBack(agentes *a, int action){
 
 }
 
-int** start_vasculhador(agentes *a, int** mapa, int x, int y){
+int** start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv){
   int vcount=0, **mapaV, i, j, action, vadj[8];
 
   vadj[0] = S;
@@ -202,6 +231,7 @@ int** start_vasculhador(agentes *a, int** mapa, int x, int y){
   vadj[6] = O;
   vadj[7] = SO;
 
+  int count=0;
 
   //Criação do mapa do vasculhador
   mapaV = new int*[x];
@@ -216,7 +246,7 @@ int** start_vasculhador(agentes *a, int** mapa, int x, int y){
   i = 0;
   action = S;
   
-  while(vcount != 60){
+  while(a->bateria - (a->posx+a->posy) > 0){
     agentePosicionGo(a, action, mapa);
     if(a->posx < x && a->posy < y && a->posx >= 0 && a->posy >=0){
         if(mapaV[a->posx][a->posy] == 0 || mapaV[a->posx][a->posy] == 1){
@@ -229,6 +259,9 @@ int** start_vasculhador(agentes *a, int** mapa, int x, int y){
           action = vadj[i];
         }else if(mapa[a->posx][a->posy] == 2){
           mapaV[a->posx][a->posy] = 2;
+          lv[count].x = a->posx;
+          lv[count].y = a->posy;
+          count++;
         }else{
           //mapaV[a->posx][a->posy] = mapa[a->posx][a->posy];
           mapaV[a->posx][a->posy] = 0;
@@ -238,8 +271,7 @@ int** start_vasculhador(agentes *a, int** mapa, int x, int y){
             if(i+1 < 8)
               i++;
             else{
-            cout << "passou" <<endl;
-            i = 0;
+              i = 0;
             }
             action = vadj[i];
           }
@@ -249,7 +281,6 @@ int** start_vasculhador(agentes *a, int** mapa, int x, int y){
       if(i+1 < 8)
         i++;
       else{
-            cout << "passou" <<endl;
             i = 0;
           }
       action = vadj[i];
@@ -276,15 +307,16 @@ float distanciaH(int x1, int x2, int y1, int y2){
   return dh;
 }
 
-void start_socorrista(agentes *b, int** mapa, int x, int y){
+void start_socorrista(agentes *b, int** mapa, int x, int y, vitima *lv){
 
   int vcout = 0, action;
   float heuristica, fh, aux;
   vitima a;
   //Analise do mapa do vasculhador
 
-  a.x = 3;
-  a.y = 2;
+
+  a.x = lv[0].x;
+  a.y = lv[0].y;
 
   //calculo heuristico
 
@@ -418,6 +450,9 @@ int **setambiente(int x, int y, string paredes, string vitimas){
     }
     cout << endl;
   }
+
+
+
 
   return mapa;
 }
