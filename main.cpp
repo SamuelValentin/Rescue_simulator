@@ -414,12 +414,10 @@ int **setambiente(int x, int y, string paredes, string vitimas){
   
         if(paredes[i-2] != ' ' && i > 3){
           aux = paredes.substr(i-2,i-1);
-          cout << aux << endl;
           px = stoi(aux);
         }
         if(paredes[i+2] != ' '){
           aux = paredes.substr(i+1,i+2);
-          cout << aux << endl;
           py = stoi(aux);
         }
           
