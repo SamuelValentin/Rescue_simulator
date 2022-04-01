@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <math.h>
+#include <vector>
 
 using namespace std;
 
@@ -31,8 +32,8 @@ void agentePosicionGo(agentes *a, char action, int **mapa);
 void agentePosicionBack(agentes *a, char action);
 
 int **setambiente(int x, int y, string paredes, string vitimas);
-int **start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv);
-void start_socorrista(agentes *b, int** mapa, int x, int y, vitima *lv);
+int **start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv, int *vcount);
+void start_socorrista(agentes *b, int** mapa, int x, int y, vitima *lv, int vcount);
 
 float distanciaH(int x1, int x2, int y1, int y2);
 
@@ -40,9 +41,10 @@ float distanciaH(int x1, int x2, int y1, int y2);
 int main(){
   
   string line, text, dados, aux, vitimas, paredes;
-  int n_line, i, m = 10 , n = 10, apx, apy;
+  int n_line, i, m = 32 , n = 32, apx, apy, vcount;
   
-  vitima lv[5];
+  vitima lv[32];
+  
 
   //leitura config.txt
   ifstream myfileA("ambiente.txt");
@@ -106,14 +108,14 @@ int main(){
       //Vasculhador - Busca cega - profundidade
       cout << "Vasculhador trabalhando" << endl;
       agentes vasculhador;
-      setAgentes(apx, apy, 240, 0, &vasculhador);
-      mapaSoc = start_vasculhador(&vasculhador, mapa, m, n, lv);
+      setAgentes(apx, apy, 2400, 0, &vasculhador);
+      mapaSoc = start_vasculhador(&vasculhador, mapa, m, n, lv, &vcount);
 
       //Socorrista - Busca informada - A*
       cout << "Socorrista trabalhando" << endl;
       agentes socorrista;
-      setAgentes(apx, apy, 240, 0, &socorrista);
-      start_socorrista(&socorrista, mapa, m, n, lv);
+      setAgentes(apx, apy, 2400, 0, &socorrista);
+      start_socorrista(&socorrista, mapa, m, n, lv, vcount);
 
 	}
 	else{
@@ -219,8 +221,8 @@ void agentePosicionBack(agentes *a, int action){
 
 }
 
-int** start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv){
-  int vcount=0, **mapaV, i, j, action, vadj[8];
+int** start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv, int *vcount){
+  int **mapaV, i, j, action, vadj[8];
 
   vadj[0] = S;
   vadj[1] = SE;
@@ -259,6 +261,7 @@ int** start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv){
           action = vadj[i];
         }else if(mapa[a->posx][a->posy] == 2){
           mapaV[a->posx][a->posy] = 2;
+          a->bateria= a->bateria-2;
           lv[count].x = a->posx;
           lv[count].y = a->posy;
           count++;
@@ -285,7 +288,6 @@ int** start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv){
           }
       action = vadj[i];
     }
-    vcount++;
   }
 
   for(i = 0 ; i < x ; i++){
@@ -294,6 +296,8 @@ int** start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv){
     }
     cout << endl;
   }
+
+  *vcount = count;
 
   return mapaV;
 
@@ -307,9 +311,9 @@ float distanciaH(int x1, int x2, int y1, int y2){
   return dh;
 }
 
-void start_socorrista(agentes *b, int** mapa, int x, int y, vitima *lv){
+void start_socorrista(agentes *b, int** mapa, int x, int y, vitima *lv, int nv){
 
-  int vcout = 0, action;
+  int action, vcout;
   float heuristica, fh, aux;
   vitima a;
   //Analise do mapa do vasculhador
@@ -317,13 +321,18 @@ void start_socorrista(agentes *b, int** mapa, int x, int y, vitima *lv){
 
   a.x = lv[0].x;
   a.y = lv[0].y;
+  vcout = 0;
 
   //calculo heuristico
 
-  while(vcout == 0){
+  while(b->bateria - (b->posx+b->posy) > 0 && vcout < nv){
       fh=999.0;
-      if(mapa[b->posx][b->posy] == 2)
-        vcout = 1;
+      if(mapa[b->posx][b->posy] == 2){
+        vcout++;
+        cout << "resgatou vitim:" << a.x << "," << a.y << endl;
+        a.x = lv[vcout].x;
+        a.y = lv[vcout].y;
+      }
 
       if(distanciaH(b->posx+1,a.x,b->posy,a.y) + 1.0 < fh && b->posx < x){
           if(mapa[b->posx+1][b->posy] != 1){
@@ -404,13 +413,11 @@ int **setambiente(int x, int y, string paredes, string vitimas){
           py = stoi(aux);
   
         if(paredes[i-2] != ' ' && i > 3){
-          cout << "opa" << endl;
           aux = paredes.substr(i-2,i-1);
           cout << aux << endl;
           px = stoi(aux);
         }
         if(paredes[i+2] != ' '){
-          cout << "opa" << endl;
           aux = paredes.substr(i+1,i+2);
           cout << aux << endl;
           py = stoi(aux);
@@ -450,9 +457,6 @@ int **setambiente(int x, int y, string paredes, string vitimas){
     }
     cout << endl;
   }
-
-
-
 
   return mapa;
 }
