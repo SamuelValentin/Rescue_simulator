@@ -1,69 +1,30 @@
-#include <stdio.h>
-#include <fstream>
-#include <iostream>
-#include <string>
-#include <math.h>
-#include <vector>
-
-using namespace std;
-
-int N = 0;
-int S = 1;
-int O = 2;
-int L = 3;
-int NE = 4;
-int NO = 5;
-int SE = 6;
-int SO = 7;
-
-struct agentes{
-  int posx, posy, suprimentos;
-  float bateria, tempo;
-};
-
-struct vitima{
-  int x, y;
-  float estadoCritico;
-};
-
-
-void setAgentes(int x, int y, int b, int s, agentes *a);
-void agentePosicionGo(agentes *a, char action, int **mapa);
-void agentePosicionBack(agentes *a, char action);
-
-int **setambiente(int x, int y, string paredes, string vitimas);
-int **start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv, int *vcount);
-void start_socorrista(agentes *b, int** mapa, int x, int y, vitima *lv, int vcount);
-
-float distanciaH(int x1, int x2, int y1, int y2);
-
+#include "heading.h"
 
 int main(){
   
   string line, text, dados, aux, vitimas, paredes;
-  int n_line, i, m = 32 , n = 32, apx, apy, vcount;
+  int n_line, i, j, m = 32 , n = 32, apx, apy, vcount=0;
   
-  vitima lv[32];
+  vitima2 lv[42];
   
-
-  //leitura config.txt
-  ifstream myfileA("ambiente.txt");
+  //leitura difacesso.txt
+  ifstream myfileA("config/difacesso.txt");
 	if (myfileA.is_open()) {
+      j = 0;
       while (getline(myfileA, line)){
+        vcount = 0;
         for(i = 0; i<line.size(); i++){
           //tira o titulo
-          if(line[i] == '=')
-            break;
+          if(line[i] == ' '){
+            vcount++;
+            if(vcount == 6)
+              break;
+          }  
         }
-        text = line.substr(0, i);
-
-        if(text == "maxLin"){
-          aux = line.substr(i+1, i+1);
-          m = stoi(aux);
-          cout << m <<endl;
-        }else if(text == "maxCol"){
-          n = stoi(dados);
-        }
+        aux = line.substr(i+1, line.size()+1);
+        m = stof(aux);
+        lv[j].acesso = m;
+        j++;
       }
       //fecha arquivo
       myfileA.close();
@@ -72,8 +33,41 @@ int main(){
     cout << "\nUnable to open file";
     return 0;
   }
-  // Leitura do Ambiente.txt
-  ifstream myfile("ambiente.txt");
+
+  //leitura SinaisVitais.txt
+  ifstream myfileB("config/sinaisvitais.txt");
+	if (myfileB.is_open()) {
+      j = 0;
+      while (getline(myfileB, line)){
+        vcount = 0;
+        for(i = 0; i<line.size(); i++){
+          //tira o titulo
+          if(line[i] == ' '){
+            vcount++;
+            if(vcount == 5)
+              break;
+          }  
+        }
+        aux = line.substr(i+3, line.size()+1);
+        m = stof(aux);
+        if(m == 0)
+          lv[j].estadoCritico = 100;
+        else  
+          lv[j].estadoCritico = m%100;
+        j++;
+      }
+      //fecha arquivo
+      myfileB.close();
+	}
+	else{
+    cout << "\nUnable to open file";
+    return 0;
+  }
+
+  socorrista_genetico(lv, 42);
+  /*
+  // Leitura do ambiente.txt
+  ifstream myfile("config/ambiente.txt");
 	if (myfile.is_open()) {
       while (getline(myfile, line)){
         for(i = 0; i<line.size(); i++){
@@ -108,23 +102,25 @@ int main(){
       //Vasculhador - Busca cega - profundidade
       cout << "Vasculhador trabalhando" << endl;
       agentes vasculhador;
-      setAgentes(apx, apy, 2400, 0, &vasculhador);
+      setAgentes(apx, apy, 1000, 0, &vasculhador);
       mapaSoc = start_vasculhador(&vasculhador, mapa, m, n, lv, &vcount);
 
       //Socorrista - Busca informada - A*
       cout << "Socorrista trabalhando" << endl;
       agentes socorrista;
-      setAgentes(apx, apy, 2400, 0, &socorrista);
+      setAgentes(apx, apy, 100, 0, &socorrista);
       start_socorrista(&socorrista, mapa, m, n, lv, vcount);
 
 	}
 	else{
     cout << "\nUnable to open file";
     return 0;
-  }
+  }*/
 		
   return 0;
 }
+
+// Funções parte 1 ----------------------------------
 
 void setAgentes(int x, int y, int b, int s, agentes *a){
   a->bateria = b;
@@ -177,7 +173,6 @@ void agentePosicionGo(agentes *a, int action, int **mapa){
 
 
 }
-
 void agentePosicionBack(agentes *a, int action){
 
   //Movimentação do agente
@@ -220,6 +215,8 @@ void agentePosicionBack(agentes *a, int action){
   }
 
 }
+
+// Vasculhador ---------------------------------------------
 
 int** start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv, int *vcount){
   int **mapaV, i, j, action, vadj[8];
@@ -297,11 +294,17 @@ int** start_vasculhador(agentes *a, int** mapa, int x, int y, vitima *lv, int *v
     cout << endl;
   }
 
+  for(i = 0 ; i < x ; i++){
+    cout << lv[i].x << "," << lv[i].y <<endl;
+  }
+
   *vcount = count;
 
   return mapaV;
 
 }
+
+// Socorrista parte 1 ----------------------------------------------
 
 float distanciaH(int x1, int x2, int y1, int y2){
   float dh;
@@ -389,7 +392,7 @@ void start_socorrista(agentes *b, int** mapa, int x, int y, vitima *lv, int nv){
 }
 
 
-
+// Ambiente ---------------------------------
 
 int **setambiente(int x, int y, string paredes, string vitimas){
   int i,j,px,py;
@@ -459,5 +462,160 @@ int **setambiente(int x, int y, string paredes, string vitimas){
   return mapa;
 }
 
-//Fazer a matrix espelho
+//---------------------------------------------------------------------- PARTE 2
 
+void socorrista_genetico(vitima2 *lv, int nV){
+  vitima2 *individuoP;
+
+  srand (time(NULL));
+
+  int numI=8, tamV=42, i ,j, timeL=800, pontA, numPais=4, herenca, geracoes = 10;
+  int *array[10], pont[numI], temp[numI], pontP[2];
+
+  Individuos listaInd[numI], listaPais[numPais], melhorInd;
+
+  melhorInd.pont = 38;
+  melhorInd.bits = NULL;
+  melhorInd.tempo = 13;
+
+  listaPais[0].pont = 0;
+  for(j=0; j<numPais; j++){
+    listaPais[j].pont = 0;
+  }
+
+  //array = new int(10);
+
+  //Geração dos individuos
+  for(j=0; j<numI; j++){
+    listaInd[j].bits = new int(tamV);
+    for(i=0; i<tamV; i++){
+      listaInd[j].bits[i] = rand()%2;
+    }
+    if(j<numPais)
+      listaPais[j] = listaInd[j];
+  }
+
+//while()
+  
+  for(int k=0; k<geracoes; k++){
+        cout << "-----------------------" << endl;
+        cout << "Pais:" << endl;
+        //Print pais
+        for(j=0; j<numPais; j++){
+          for(i=0; i<tamV; i++){
+            cout << listaPais[j].bits[i];
+          }
+          cout << endl;
+        }
+
+        cout << "-----------------------" << endl;
+        cout << "Filhos:" << endl;
+        //print Filhos --------
+        
+        for(i=0; i<numI; i++){
+          for(j=0; j<tamV; j++){
+            herenca = rand()%numPais;
+            listaInd[i].bits[j] = listaPais[herenca].bits[j];
+            listaInd[i].bits = mutacao(listaInd[i].bits, j, 25);
+          }
+        }
+
+        pontuacao_individuos(numI, tamV, listaInd, lv);
+        
+
+        //Seleçao de pais
+        for(j=0; j<numPais; j++){
+          for(i=0; i<numI; i++){
+            if(listaPais[j].pont <= listaInd[i].pont && listaInd[i].tempo <= timeL && listaInd[i].bits != listaPais[j-1].bits){
+              if(listaPais[j].pont == listaInd[i].pont){
+                if(listaPais[j].tempo > listaInd[i].tempo)
+                  listaPais[j] = listaInd[i];
+                else
+                  listaPais[j] = listaInd[i];
+              }else{
+                listaPais[j] = listaInd[i];
+              }
+              listaInd[i].pont = 0;     
+            }
+          }
+          if(melhorInd.pont < listaPais[j].pont)
+                melhorInd = listaPais[j];
+        }
+
+        print_melhorI(melhorInd, tamV);
+  }
+  
+  for(i=0; i<tamV; i++){
+    cout << melhorInd.bits[i];
+  }
+  cout << " = "<< melhorInd.pont <<endl;
+}
+
+int* mutacao(int* v, int j, int prob){
+
+  int mut = rand()%100;
+
+  if(mut < prob){
+    if(v[j] == 0)
+      v[j] = 1;
+    else  
+      v[j] = 0;
+  }
+
+  return v;
+}
+
+void pontuacao_individuos(int numI, int tamV, Individuos* listaInd, vitima2 *lv){
+  int tempo, pontA;
+  float g=0, s=0;
+
+// Calculo do tempo e custo
+        for(int j=0; j<numI; j++){
+          tempo=0;
+          pontA=0;
+          for(int i=0; i<tamV; i++){
+                if(listaInd[j].bits[i] == 1){
+                  tempo = tempo + lv[i].acesso;
+                  g = g + lv[i].estadoCritico;
+                  //printf("// %f", lv[i].estadoCritico);
+                  //pontuaçao
+                  if(lv[i].estadoCritico>=0 && lv[i].estadoCritico <20)
+                    pontA = pontA + (/*lv[i].estadoCritico**/1);
+                  else if(lv[i].estadoCritico>=20 && lv[i].estadoCritico <40)
+                    pontA = pontA + (2);
+                  else if(lv[i].estadoCritico>=40 && lv[i].estadoCritico <60)
+                    pontA = pontA + (3);
+                  else if(lv[i].estadoCritico>=60 && lv[i].estadoCritico <80)
+                    pontA = pontA + (4);
+                  else if(lv[i].estadoCritico>=80 && lv[i].estadoCritico <=100)
+                    pontA = pontA + (5);
+                  s++;
+                }
+                printf("%d", listaInd[j].bits[i]);
+          }
+          listaInd[j].tempo = tempo;
+          printf(" : tempo = %f", listaInd[j].tempo);
+          listaInd[j].pont = pontA;
+          printf(" / pontuacao = %f", listaInd[j].pont);
+          listaInd[j].vs = s;
+          printf(" / pontuacao = %f", listaInd[j].vs);
+          s = s / tempo;
+          listaInd[j].s = s;
+          printf(" / S = %f", listaInd[j].s);
+          listaInd[j].g = g / 100;
+          printf(" / G = %f\n", listaInd[j].g);
+        }
+
+}
+
+void print_melhorI(Individuos a, int tamV){
+
+    cout << "-----------------------" << endl;
+    cout << "Melhor caso:" << endl;
+
+    for(int i=0; i<tamV; i++){
+      cout << a.bits[i];
+    }
+    cout << " = "<< a.pont << " / Vitimas salvas = " << a.vs << " / S = " << a.s << " / G = " << a.g <<endl;
+
+}
